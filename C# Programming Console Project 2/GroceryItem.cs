@@ -10,12 +10,17 @@ namespace ProgramProject2_InventoryList
     {
         public string ItemName { get; set; }
         public int Quantity { get; set; }
-        public string Department { get; set; }
+        public Department Department { get; set; }
+        public decimal Price { get; set; }
 
         // Interface method for sorting alphabetically
         public int CompareTo(GroceryItem other)
         {
             return this.ItemName.CompareTo(other.ItemName);
+        }
+        public override string ToString()
+        {
+            return $"{ItemName} - Quantity: {Quantity} - Price: {Price:C} - Department: {Department}";
         }
     }
 }

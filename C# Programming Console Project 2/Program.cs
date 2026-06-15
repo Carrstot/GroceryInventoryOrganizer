@@ -7,14 +7,15 @@ using System.IO;
 
 namespace ProgramProject2_InventoryList
 {
+    public enum Department
+    {
+        Bakery, Produce, Deli, Meat, Seafood, DryGoods, Dairy,
+        Frozen, Housewares, Toys, Automotive, Pet, Pharmacy,
+        Clothing, Electronics, Hygiene, SportingGoods
+    }
     public class Program
     {
-        static string[] departments = new string[]
-        {
-            "Bakery", "Produce", "Deli", "Meat", "Seafood", "Dry Goods", "Dairy",
-            "Frozen", "Housewares", "Toys", "Automotive", "Pet", "Pharmacy",
-            "Clothing", "Electronics", "Hygiene", "Sporting Goods"
-        };
+       
 
         static void Main(string[] args)
         {
@@ -32,8 +33,7 @@ namespace ProgramProject2_InventoryList
                 //add save to file and meassage before break statement 
                 if (inputItem.Equals("DONE", StringComparison.OrdinalIgnoreCase))
                 {
-                    SaveInventoryToFile(groceryInventory);
-                    Console.WriteLine($"Inventory saved to the desktop");
+                    SaveInventoryToCsv(groceryInventory);
                     break;
                 }
 
@@ -137,14 +137,47 @@ namespace ProgramProject2_InventoryList
                         }
                     }
 
-                    // Department validation
-                    Console.WriteLine("Enter a department: ");
-                    string inputDepartment = Console.ReadLine();
-                    while (!IsPresent(inputDepartment, departments))
+                    decimal price = 0;
+                    bool validPrice = false;
+
+                    Console.WriteLine("Enter the price:");
+
+                    while (!validPrice)
                     {
-                        Console.WriteLine("Please enter a valid department.");
-                        inputDepartment = Console.ReadLine();
+                        string inputPrice = Console.ReadLine();
+
+                        if (decimal.TryParse(inputPrice, out price) && price >= 0)
+                        {
+                            validPrice = true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid price. Try again:");
+                        }
                     }
+
+                    // Department validation
+                    Department inputDepartment;
+
+                    while (true)
+                    {
+                        Console.WriteLine("Enter a department:");
+
+                        foreach (var dept in Enum.GetValues(typeof(Department)))
+                        {
+                            Console.WriteLine(dept);
+                        }
+
+                        string input = Console.ReadLine();
+
+                        if (Enum.TryParse(input, true, out inputDepartment))
+                        {
+                            break;
+                        }
+
+                        Console.WriteLine("Invalid department. Try again.");
+                    }
+                    
 
                     
                     //add items to inventory using inheritance to create an alreadyowned object
@@ -159,6 +192,7 @@ namespace ProgramProject2_InventoryList
                             ItemName = inputItem,
                             Quantity = quantity,
                             Department = inputDepartment,
+                            Price = price,
                             AlreadyOwned = true
                         });
                     }
@@ -168,7 +202,8 @@ namespace ProgramProject2_InventoryList
                         {
                             ItemName = inputItem,
                             Quantity = quantity,
-                            Department = inputDepartment
+                            Department = inputDepartment,
+                            Price = price
                         });
                     }
                     Console.WriteLine("Item added successfully.\n");
@@ -182,16 +217,16 @@ namespace ProgramProject2_InventoryList
                 .OrderBy(group => group.Key);
 
             // Display inventory accounting for owneditems
-            Console.WriteLine("\nInventoryk:");
+            Console.WriteLine("\nInventory:");
             foreach (var group in groupedList)
             {
-                Console.WriteLine($"----{group.Key.ToUpper()}----");
+                Console.WriteLine($"----{group.Key.ToString()}----");
                 foreach (var item in group.OrderBy(i => i)) // uses IComparable
                 {
                     if (item is OwnedItem)
                         Console.WriteLine(item);
                     else
-                        Console.WriteLine($"{item.ItemName} - Quantity: {item.Quantity}");     
+                        Console.WriteLine($"{item.ItemName} - Qty: {item.Quantity} - Price: {item.Price:C}");     
                 }
                 Console.WriteLine();
             }
@@ -204,18 +239,26 @@ namespace ProgramProject2_InventoryList
             Console.WriteLine("/nPurchase List (Items to be purchased):");
             foreach (var item in purchaseList)  
                 { 
-                    Console.WriteLine($"{item.ItemName} - Quantity: {item.Quantity} - Department: {item.Department}");
+                    Console.WriteLine($"{item.ItemName},{item.Quantity},{item.Department},{item.Price}"); 
                 }
 
             Console.WriteLine("Press any key to exit.");
             Console.ReadKey();
+
+            decimal totalValue = groceryInventory.Items
+                .Sum(item => (item.Price) * item.Quantity);
+
+            Console.WriteLine($"\nTotal Inventory Value: {totalValue:C}");
+
+
+
 
             //load the inventory from the file on program startup
             static void LoadInventoryFromFile(Inventory inventory)
             {
                 string filePath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    "inventory.txt");
+                    "inventory.csv");
 
                 //check if the file exists
                 if (!File.Exists(filePath))
@@ -226,34 +269,55 @@ namespace ProgramProject2_InventoryList
                     string line;
                     while ((line = reader.ReadLine()) != null)
                     {
-                        string[] parts = line.Split(',');
+                        string[] parts = line.Split(',').Select(p => p.Trim()).ToArray();
+
+                        if (parts.Length < 4) continue;
+
+                        if (!int.TryParse(parts[1], out int qty)) continue;
+
+                        Department dept;
+                        string deptInput = parts[2].Trim().Replace(" ", "");
+                        if (!Enum.TryParse(deptInput, true, out dept))
+                        {
+                            Console.WriteLine($"SKIPPED (bad department): {parts[2]}");
+                            continue;
+                        }
+
+                        if (!decimal.TryParse(parts[3], out decimal price))
+                            continue;
+
 
                         inventory.Add(new OwnedItem
                         {
                             ItemName = parts[0].Trim(),
-                            Quantity = int.Parse(parts[1]),
-                            Department = parts[2].Trim(),
+                            Quantity = qty,
+                            Department = dept,
+                            Price = price,
                             AlreadyOwned = true
                         });
                     }
                 }
             }
 
-                //save the inventpory to a desktop file
-                static void SaveInventoryToFile(Inventory inventory)
+            //save the inventpory to a csv desktop file
+            static void SaveInventoryToCsv(Inventory inventory)
             {
                 string filePath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    "inventory.txt");
+                    "inventory.csv");
 
                 using (StreamWriter writer = new StreamWriter(filePath))
                 {
+                    // Header row (important for Excel readability)
+                    writer.WriteLine("ItemName,Quantity,Department,Price");
+
                     foreach (var item in inventory.Items)
                     {
-                        writer.WriteLine($"{item.ItemName}, {item.Quantity},{item.Department}");
+                        writer.WriteLine($"{item.ItemName},{item.Quantity},{item.Department},{item.Price}");
                     }
                 }
-                
+
+                Console.WriteLine("Inventory exported to Excel (CSV) successfully!");
             }
         }
 
@@ -264,16 +328,9 @@ namespace ProgramProject2_InventoryList
         }
 
         // Validate department exists
-        static bool IsPresent(string department, string[] departments)
-        {
-            foreach (string dept in departments)
-            {
-                if (string.Equals(department, dept, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-            return false;
+        // changed to enum so array/input validation not needed, deleting method
+
 
         
-        }
     }
 }

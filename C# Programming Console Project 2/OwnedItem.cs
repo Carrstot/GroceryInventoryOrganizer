@@ -9,10 +9,12 @@ namespace ProgramProject2_InventoryList
     public class OwnedItem:GroceryItem
     {
         public bool AlreadyOwned { get; set; }
+        public decimal Price { get; set; }
+
         //demonstrates polymorphism
         public override string ToString()
         {
-            return $"{ItemName} - Quantity: {Quantity} - Department: {Department} (Already Owned)";
+            return $"{ItemName} - Quantity: {Quantity} - Price: {Price:C} Department: {Department} (Already Owned)";
         }
     }
 }
